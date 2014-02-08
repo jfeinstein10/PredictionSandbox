@@ -31,13 +31,15 @@ class MovieJob(args: Args) extends Job(args) {
   val lambda = 1.0
   val lambdaMatrix = DenseMatrix.eye[Double](d) * lambda
 
-  println(lambdaMatrix)
-
   val csv = input
-    .map('line -> 'slope) {
+    .flatMap('line -> 'slope) {
     line: String =>
       val target = DenseVector[Double](line.split(",").slice(0, n).map(_.toDouble))
-      val result = LinearRegression.regress(X, target)
-      result(1)
-  }.write(output)
+      val result = X \ target
+      println(result)
+      result.toArray
+  }
+    .project('slope)
+    .groupAll { _.sortBy('slope).reverse }
+    .write(output)
 }
