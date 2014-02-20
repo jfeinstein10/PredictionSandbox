@@ -10,11 +10,7 @@ class ProduceEdgeFactorCurves(args: Args) extends Job(args) {
   /**
    * Number of trending items to display
    */
-  val tested_length = args("tested_data_length").toInt
-  /**
-   * Number of trending items to display
-   */
-  val result_length = args("result_length").toInt
+  val data_length = args("data_length").toInt
 
   /**
    * Under that number, will say that it is irrelevant.
@@ -27,31 +23,31 @@ class ProduceEdgeFactorCurves(args: Args) extends Job(args) {
   val w =  args("window_w").toInt
 
 
-  //------- Compute the real list of trending items -----------
+  //------- Compute edges factor
   val valid_id_order =
-    input.flatMapTo('id, 'slope) {
+    input.flatMapTo('id, 'edges) {
       line: String =>
         val id = line.substring(0, 4).toDouble
-        val targets = DenseVector[Double](line.split(",").slice(1, tested_length + w + 1).map(_.toDouble))
-        val edge_detector = new EdgeDetector(h, w, threshold, targets);
-        //check if there is an edge at the last tested point of the time series.
-        Array((id, edge_detector.getEdgeFactor(tested_length)))
-    }
-      .groupAll {
-      _.sortBy('slope).reverse
+        val targets = DenseVector[Double](line.split(",").drop(1).map(_.toDouble))
 
+        val edge_detector = new EdgeDetector(h, w, threshold, targets);
+
+        val edges:StringBuffer = new StringBuffer()
+        for (i <- h to targets.length - (w)){
+          edges.append(",")
+          edges.append(edge_detector.getEdgeFactor(i))
+        }
+        Array((id, edges.toString))
     }
+      /*.groupAll {
+      _.sortBy('id)
+
+    }*/
 
   //
-  valid_id_order.limit(result_length).write(TextLine("tmp"))
+  valid_id_order.write(TextLine(args("output")))
 
 
-  //------- Compare given results with computed results -----------
-  //This section might need refactor
-
-  val provided_results = TextLine(args("results_input"))
-  val computed_results = TextLine("tmp")
-  val output = TextLine(args("output"))
 
 
 }
