@@ -9,37 +9,35 @@ import scala.math.pow
 class MovieJob(args: Args) extends Job(args) {
 
   val input = TextLine(args("input"))
-  val output = TextLine(args("output"))
+  val output = args.getOrElse("output", "output")
 
-  val n = 10 // number of points
-  val d = 2 // degree of the polynomial
+  val d = args.getOrElse("degree", "1").toInt // degree of the polynomial
+  val n = args.getOrElse("sample", "20").toInt // the number of points to fit
+
   val arr = DenseVector.zeros[Double](n)
   for (i <- 0 to n-1) arr(i) = i
 
-  /**
-   * Input, x values (time)
-   */
-  var X = DenseVector.horzcat(DenseVector.ones[Double](n),  arr)
-  for (i <- 2 to d) {
-    X = DenseMatrix.horzcat(X, arr.map(pow(_,i)).toDenseMatrix.t)
-  }
-
-  /**
-   * Lambda is a parameter. The higher it is, less likely the matrix will overfit data (smoother curve).
-   * Overfit is likely when you do not have a lot of data and your curve degree (length of w) is high.
-   */
-  val lambda = 1.0
-  val lambdaMatrix = DenseMatrix.eye[Double](d) * lambda
-
-  val csv = input
-    .flatMap('line -> 'slope) {
+  input
+    .map('line -> 'coeff) {
     line: String =>
-      val target = DenseVector[Double](line.split(",").slice(0, n).map(_.toDouble))
-      val result = X \ target
-      println(result)
-      result.toArray
+      val y = line.split(",").slice(0, n).map(_.toDouble)
+      val model = new PolynomialModel(arr, DenseVector[Double](y), d)
+      model.forecast(arr(arr.length-1)+1)
   }
-    .project('slope)
-    .groupAll { _.sortBy('slope).reverse }
-    .write(output)
+    .project('coeff)
+    .groupAll { _.sortBy('coeff).reverse }
+    .write(TextLine(output+"-poly"))
+
+  // ARIMA
+  input
+    .map('line -> ('pred1, 'pred2, 'pred3)) {
+    line: String =>
+      val y = line.split(",").slice(0, n).map(_.toDouble)
+      val model = new ARIMAModel(Array[Double](), Array[Double](), 0, 0)
+      val pred = model.forecast(DenseVector[Double](y), 3)
+      (pred(0), pred(1), pred(2))
+  }
+    .project(('pred1, 'pred2, 'pred3))
+    .write(TextLine(output+"-arima"))
+
 }
