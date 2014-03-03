@@ -10,7 +10,8 @@ libraryDependencies  ++= Seq(
   "com.twitter" % "scalding-args_2.10" % "0.8.11",
   "cascading" % "cascading-core" % "2.5.2",
   "cascading" % "cascading-hadoop" % "2.5.2",
-  "cascading" % "cascading-local" % "2.5.2"
+  "cascading" % "cascading-local" % "2.5.2",
+  "org.slf4j" % "slf4j-simple" % "1.7.6"
 )
 
 resolvers ++= Seq(

@@ -4,11 +4,11 @@ import breeze.linalg.DenseVector
  * Created by jeremy on 2/11/14.
  * https://github.com/ilagunap/ARIMA-Tools/blob/master/src/arima_tools.C
  */
-class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
+class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) extends IterativeModel {
 
-  val dSeries:Array[DenseVector[Double]] = Array()
+  var dSeries:Array[DenseVector[Double]] = Array()
 
-  def forecast(x:DenseVector[Double], n:Int): DenseVector[Double] = {
+  override def forecast(x:DenseVector[Double], n:Int): DenseVector[Double] = {
 
     val obs = diff(x)
     val pred = DenseVector.zeros[Double](n)
@@ -16,6 +16,7 @@ class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
 
     // initialize the full window of values
     val win = DenseVector.zeros[Double](obs.length+n)
+    val mu = obs.sum/obs.length
     for (i <- 0 until obs.length) win(i) = obs(i)
 
     for (i <- ar.length until win.length) {
@@ -36,7 +37,7 @@ class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
       for (j <- 0 until ma.length)
         new_val += ma(j) * errors(ma.length-1-j)
 
-      // Add intersect
+      // Add intercept
       new_val += intercept * phi_factor
 
       if (ma.length > 0) {
@@ -71,7 +72,7 @@ class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
       throw new IllegalArgumentException()
 
     // Save original window
-    dSeries :+ x
+    dSeries = dSeries :+ x
 
     // Differentiate d times
     for (i <- 0 until d) {
@@ -79,7 +80,7 @@ class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
       for (j <- 0 until dSeries(i).length - 1) {
         temp(j) = dSeries(i)(j+1) - dSeries(i)(j)
       }
-      dSeries :+ temp
+      dSeries = dSeries :+ temp
     }
     dSeries(d)
   }
@@ -95,7 +96,13 @@ class ARIMAModel(ar:Array[Double], ma:Array[Double], d:Int, intercept:Double) {
     // Undo d-differentiated series
     for (i <- 0 until d) {
       for (k <- 0 until x.length) {
-        val prev = if (k == 0) dSeries(dSeries.length-i-2)(-1) else pred(k-1)
+        var prev = pred(k)
+        if (k == 0) {
+          val old = dSeries(dSeries.length-i-2)
+          prev = old(old.length-1)
+        } else {
+          prev = pred(k-1)
+        }
         pred(k) = prev + diffed(k)
       }
       diffed = pred
