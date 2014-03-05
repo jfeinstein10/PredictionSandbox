@@ -22,21 +22,6 @@
 
     val curve_overfit_control = args("curve_overfit_control").toDouble
 
-
-    /**
-     * X = Input x values. looks like
-     * 1 1 1 ...
-     * 1 2 4 ...
-     * 1 3 9 ...
-     * ....
-     */
-    val arr = DenseVector.zeros[Double](data_length)
-    for (i <- 0 to data_length-1) arr(i) = i
-    var X = DenseVector.horzcat(DenseVector.ones[Double](data_length),  arr)
-    for (i <- 2 to curve_degree) {
-      X = DenseMatrix.horzcat(X, arr.map(pow(_,i)).toDenseMatrix.t)
-    }
-
     /**
      * Lambda is a parameter. The higher it is, less likely the matrix will overfit data (smoother curve).
      * Overfit is likely when you do not have a lot of data and your curve degree (length of w) is high.
@@ -46,10 +31,9 @@
     val results =
       input.flatMap('line -> ('id, 'slope))
       { line : String =>
-          val id = line.substring(0, 2).toDouble
-          val targets = DenseVector[Double](line.split(",").takeRight(data_length).map(_.toDouble))
-          println(id)
-          Array((id, getTrendingFactor(targets)))
+          val id = line.substring(0, 4).toDouble
+          val targets = DenseMatrix(line.split(",").slice(1,data_length + 1).map(_.toDouble)).t
+          Array((id, getTrendingFactor(targets.toDenseMatrix)))
       }
       .project('id, 'slope)
       .groupAll { _.sortBy('slope).reverse }
@@ -58,17 +42,32 @@
     results.limit(result_length).write(output)
 
 
+
+    /**
+     * PHI = Input x values. looks like
+     * 1 1 1 ...
+     * 1 2 4 ...
+     * 1 3 9 ...
+     * ....
+     */
+    val arr = DenseVector.zeros[Double](data_length)
+    for (i <- 0 to data_length-1) arr(i) = i.toDouble
+    var PHI:DenseMatrix[Double] = DenseVector.horzcat(DenseVector.ones[Double](data_length),  arr)
+    for (i <- 2 to curve_degree) {
+      PHI = DenseMatrix.horzcat(PHI, arr.map(pow(_,i)).asDenseMatrix.t)
+    }
+
     /**
      * Match a curve on the time serie. Will return the curve future acceleration.
      * @param targets
      */
-    def getTrendingFactor(targets : DenseVector[Double]):Double = {
+    def getTrendingFactor(targets : DenseMatrix[Double]):Double = {
       //Solve the linear equation
-      val weigths = X \ targets
-      println("weights : " + weigths)
-      println("targets : " + targets)
-      println(getAccelerationAt(weigths, data_length + 1))
+      val Lambda:DenseMatrix[Double] = DenseMatrix.eye[Double](curve_degree + 1) :* curve_overfit_control
+      val A:DenseMatrix[Double] =  PHI.t * PHI + Lambda
+      val B:DenseMatrix[Double] =  PHI.t * targets
 
+      val weigths =  A \ B
       return getAccelerationAt(weigths, data_length + 1)
     }
 
@@ -76,8 +75,8 @@
      * @param function scalar of the function from which we want to get acceleration. Should get a lib for that.
      * @param x point at which we want the acceleration
      */
-    def getAccelerationAt(function : DenseVector[Double], x : Double) : Double = {
-      val scalars = function.copy
+    def getAccelerationAt(function : DenseMatrix[Double], x : Double) : Double = {
+      val scalars = function.copy.toDenseVector
 
       //Derivate twice to get acceleration..
       for (i <- 2 to curve_degree){
