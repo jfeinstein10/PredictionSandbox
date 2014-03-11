@@ -12,11 +12,11 @@
     /**
      * Number of points in the time serie to use
      */
-    val data_length = args("data_length").toInt
+    val data_length = 100
     /**
      * Number of trending items to display
      */
-    val result_length = args("result_length").toInt
+    val result_length = 20
 
     val curve_degree = args("curve_degree").toInt
 
