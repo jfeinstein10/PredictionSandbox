@@ -11,7 +11,12 @@ libraryDependencies  ++= Seq(
   "cascading" % "cascading-core" % "2.5.2",
   "cascading" % "cascading-hadoop" % "2.5.2",
   "cascading" % "cascading-local" % "2.5.2",
-  "org.slf4j" % "slf4j-simple" % "1.7.6"
+  "org.slf4j" % "slf4j-simple" % "1.7.6",
+  "log4j" % "log4j" % "1.2.15" excludeAll(
+    ExclusionRule(organization = "com.sun.jdmk"),
+    ExclusionRule(organization = "com.sun.jmx"),
+    ExclusionRule(organization = "javax.jms")
+  )
 )
 
 resolvers ++= Seq(
