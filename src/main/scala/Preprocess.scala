@@ -1,6 +1,6 @@
 import com.twitter.scalding._
 import java.lang.System
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, Map}
 
 /**
  * Created by jeremy on 3/7/14.
@@ -42,8 +42,19 @@ class Preprocess(args: Args) extends Job(args) {
     list.toList
   }
 
-  val list = generateU2i(10000)
-  // TODO perform a CPU version to check
+  val list = generateU2i(1000)
+
+  // let's do a CPU check
+  val mapping = Map[Int, Array[Int]]()
+  for (i <- 10 to 20) {
+    val hist = Array.fill[Int](numWindows)(0)
+    val items = list.filter(_._2 == i)
+    for (item <- items) {
+      hist(((item._3-endTime)/windowSize).toInt) += 1
+    }
+    mapping += (i -> hist)
+    println(i, "\t", hist.mkString(","))
+  }
 
   // now do the scalding  version
   val source = IterableSource(list, ('user, 'item, 'time))
@@ -58,4 +69,5 @@ class Preprocess(args: Args) extends Job(args) {
       timeseries.mkString(",")
   }.project('item,'timestring)
     .write(output)
+
 }
