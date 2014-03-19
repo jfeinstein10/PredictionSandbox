@@ -7,6 +7,6 @@ import com.twitter.scalding.Args
 object Main {
   def main(args: Array[String]): Unit = {
     val args = new Args(Map())
-    val job = new MovieJob(args)
+    val job = new SimpleMovingAverage(args)
   }
 }
